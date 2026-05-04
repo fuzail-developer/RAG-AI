@@ -39,3 +39,6 @@ class User(Base):
     magic_tokens = relationship(
         "MagicLinkToken", back_populates="user", cascade="all, delete-orphan"
     )
+    chat_histories = relationship(
+        "ChatHistory", back_populates="user", cascade="all, delete-orphan"
+    )
