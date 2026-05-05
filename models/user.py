@@ -15,6 +15,7 @@ class User(Base):
         String(255), unique=True, index=True, nullable=False
     )
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    phone_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     password_hash: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )  # For password-based login

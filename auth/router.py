@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
@@ -28,6 +29,7 @@ class AuthMeResponse(BaseModel):
     id: str
     email: str
     name: str | None = None
+    phone_number: str | None = None
     is_active: bool
     subscription_plan: str
     subscription_expiry: datetime | None
@@ -45,12 +47,23 @@ class ActivateSubscriptionBody(BaseModel):
 class SignupBody(BaseModel):
     name: str
     email: EmailStr
+    phone_number: str
     password: str
 
 
 class LoginBody(BaseModel):
     email: EmailStr
     password: str
+
+
+def normalize_phone_number(phone_number: str) -> str:
+    phone = phone_number.strip()
+    if not re.fullmatch(r"^\+?[0-9]{10,15}$", phone):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Phone number must be 10-15 digits (optional leading +).",
+        )
+    return phone
 
 
 @router.post("/request-magic-link")
@@ -220,11 +233,13 @@ def signup(payload: SignupBody, db: Session = Depends(get_db)):
         )
 
     hashed_password = generate_password_hash(payload.password, method="pbkdf2:sha256")
+    phone_number = normalize_phone_number(payload.phone_number)
     new_user = User(
         email=email,
         password_hash=hashed_password,
         is_active=True,
         name=payload.name.strip(),
+        phone_number=phone_number,
         subscription_expiry=None,
         subscription_plan="free",
         chat_count=0,
@@ -246,6 +261,7 @@ def signup(payload: SignupBody, db: Session = Depends(get_db)):
             "id": str(new_user.id),
             "email": new_user.email,
             "name": new_user.name,
+            "phone_number": new_user.phone_number,
             "is_active": new_user.is_active,
             "subscription_expiry": new_user.subscription_expiry,
             "subscription_plan": new_user.subscription_plan,
@@ -295,6 +311,7 @@ def login(payload: LoginBody, db: Session = Depends(get_db)):
             "id": str(user.id),
             "email": user.email,
             "name": user.name,
+            "phone_number": user.phone_number,
             "is_active": user.is_active,
             "subscription_expiry": user.subscription_expiry,
             "subscription_plan": user.subscription_plan,
