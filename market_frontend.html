@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+﻿  <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -315,6 +315,16 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
 .toast.success{border-color:var(--success);}
 .toast.error{border-color:var(--danger);}
 .toast.warning{border-color:var(--warning);}
+@media (max-width: 900px){
+  nav{padding:0 12px;height:56px;}
+  .nav-tabs{display:none;}
+  .hist-sidebar,.doc-sidebar{display:none !important;}
+  #sc-chat{height:calc(100vh - 56px);}
+  .chat-main{min-width:0;}
+  .mbody{max-width:82%;}
+  .fi{font-size:16px;} /* prevent iOS input zoom */
+  #bg-canvas,#stars,.nb{display:none !important;} /* avoid mobile hangs */
+}
 </style>
 </head>
 <body>
@@ -329,7 +339,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
   <div class="modal">
     <div class="modal-icon">🔒</div>
     <div class="modal-title">Free Limit Reached</div>
-    <div class="modal-desc">You've used all 5 free chats. Pay ₹9,999/month to unlock unlimited access.</div>
+    <div class="modal-desc">You've used all 5 free chats and 1 free PDF upload. Pay ₹9,999/month to unlock unlimited access.</div>
     <div class="modal-btns">
       <a class="btn-mpay" href="https://razorpay.me/@afreen9836" target="_blank" onclick="closePaywall()">Pay ₹9,999 via Razorpay →</a>
       <button class="btn-mclose" onclick="closePaywall()">Maybe later</button>
@@ -366,15 +376,16 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
         <button class="atab" onclick="atab(this,'signup')">Sign Up</button>
       </div>
       <div id="f-login">
-        <div class="fg"><label class="fl">Email</label><input class="fi" id="le" type="email" placeholder="you@company.com"></div>
-        <div class="fg"><label class="fl">Password</label><input class="fi" id="lp" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <div class="fg"><label class="fl">Email</label><input class="fi" id="le" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com"></div>
+        <div class="fg"><label class="fl">Password</label><input class="fi" id="lp" type="password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
         <button class="btn-auth" onclick="doLogin()">Login to CogniVault →</button>
         <div class="auth-err" id="lerr"></div>
       </div>
       <div id="f-signup" style="display:none">
-        <div class="fg"><label class="fl">Full Name</label><input class="fi" id="sn" type="text" placeholder="Dr. Ahmed Khan"></div>
-        <div class="fg"><label class="fl">Email</label><input class="fi" id="se" type="email" placeholder="you@company.com"></div>
-        <div class="fg"><label class="fl">Password</label><input class="fi" id="sp" type="password" placeholder="Min 6 characters" onkeydown="if(event.key==='Enter')doSignup()"></div>
+        <div class="fg"><label class="fl">Full Name</label><input class="fi" id="sn" type="text" autocomplete="name" placeholder="Your Name"></div>
+        <div class="fg"><label class="fl">Email</label><input class="fi" id="se" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com"></div>
+        <div class="fg"><label class="fl">Phone Number</label><input class="fi" id="sph" type="tel" inputmode="tel" autocomplete="tel" placeholder="+919876543210"></div>
+        <div class="fg"><label class="fl">Password</label><input class="fi" id="sp" type="password" autocomplete="new-password" placeholder="Min 6 characters" onkeydown="if(event.key==='Enter')doSignup()"></div>
         <button class="btn-auth" onclick="doSignup()">Create Account — 5 Free Chats →</button>
         <div class="auth-err" id="serr"></div>
       </div>
@@ -402,7 +413,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
       </div>
       <div class="sb-plan">
         <div class="sp-title" id="plan-lbl">Free Plan</div>
-        <div class="sp-cnt" id="plan-cnt">0 / 5 chats used</div>
+        <div class="sp-cnt" id="plan-cnt">0 / 5 chats used · 0 / 1 PDF uploaded</div>
         <div class="sp-bar"><div class="sp-fill" id="plan-fill" style="width:0%"></div></div>
         <button class="btn-upg" onclick="goTo('pay')">⚡ Upgrade ₹9,999</button>
       </div>
@@ -456,7 +467,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
       <p>Upload PDFs, TXT, or MD — indexed automatically and ready to chat</p>
     </div>
     <div class="upload-zone">
-      <input type="file" accept=".pdf,.txt,.md" onchange="uploadFiles(event)" multiple>
+      <input type="file" accept=".pdf" onchange="uploadFiles(event)" multiple>
       <div class="uz-icon">📄</div>
       <div class="uz-title">Drop files here or click to upload</div>
       <div class="uz-sub">PDF, TXT, MD — any size supported</div>
@@ -511,7 +522,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
         <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;">
           <div style="font-size:22px;margin-bottom:8px;">💬</div>
           <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:6px;">Free Plan</div>
-          <div style="font-size:13px;color:var(--muted2);line-height:1.6;">5 chats for testing · Basic document interaction · Ideal for trial and evaluation</div>
+          <div style="font-size:13px;color:var(--muted2);line-height:1.6;">5 chats & 1 PDF upload for testing · Basic document interaction · Ideal for trial and evaluation</div>
         </div>
         <div style="background:linear-gradient(160deg,#111120,#1a1035);border:1px solid var(--purple);border-radius:14px;padding:22px;">
           <div style="font-size:22px;margin-bottom:8px;">🚀</div>
@@ -556,9 +567,9 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
           <div class="pc-desc">Get started at no cost</div>
           <ul class="pc-feats">
             <li class="hi">5 free chats total</li>
-            <li class="hi">Upload documents</li>
+            <li class="hi">1 free PDF upload</li>
             <li>Basic document search</li>
-            <li style="color:var(--danger)">Chat limit: 5 only</li>
+            <li style="color:var(--danger)">Limits: 5 chats & 1 PDF only</li>
           </ul>
           <button class="btn-buy out" onclick="goTo('chat')">Continue with Free →</button>
         </div>
@@ -653,20 +664,32 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
 </div>
 
 <script>
-const API = "http://127.0.0.1:8000";
+function resolveAPIBase(){
+  const urlParam = new URLSearchParams(window.location.search).get('api');
+  const stored = localStorage.getItem('cv_api_base');
+  const chosen = (urlParam || stored || window.location.origin || '').trim();
+  if(urlParam){
+    localStorage.setItem('cv_api_base', chosen);
+  }
+  return chosen.replace(/\/+$/, '');
+}
+const API = resolveAPIBase();
 const MAX_FREE = 5;
+const MAX_FREE_PDF = 1;
 const FEEDBACK_EMAIL = "fuzailshaik42@gmail.com";
+const IS_MOBILE = window.matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
 // Stars
 const cv=document.getElementById('stars'),cx=cv.getContext('2d');
 let stars=[];
 function rsz(){cv.width=innerWidth;cv.height=innerHeight;}
-function mkS(){stars=[];for(let i=0;i<150;i++)stars.push({x:Math.random()*cv.width,y:Math.random()*cv.height,r:Math.random()*1.2,t:Math.random()*Math.PI*2,s:Math.random()*0.004+0.002});}
-function drS(){cx.clearRect(0,0,cv.width,cv.height);stars.forEach(s=>{s.t+=s.s;const a=0.2+0.8*Math.abs(Math.sin(s.t));cx.beginPath();cx.arc(s.x,s.y,s.r,0,Math.PI*2);cx.fillStyle=`rgba(150,130,255,${a})`;cx.fill();});requestAnimationFrame(drS);}
-rsz();mkS();drS();window.addEventListener('resize',()=>{rsz();mkS();});
+function mkS(){stars=[];const count=IS_MOBILE?40:150;for(let i=0;i<count;i++)stars.push({x:Math.random()*cv.width,y:Math.random()*cv.height,r:Math.random()*1.2,t:Math.random()*Math.PI*2,s:Math.random()*0.004+0.002});}
+function drS(){cx.clearRect(0,0,cv.width,cv.height);stars.forEach(s=>{s.t+=s.s;const a=0.2+0.8*Math.abs(Math.sin(s.t));cx.beginPath();cx.arc(s.x,s.y,s.r,0,Math.PI*2);cx.fillStyle=`rgba(150,130,255,${a})`;cx.fill();});if(!IS_MOBILE)requestAnimationFrame(drS);}
+if(!IS_MOBILE){rsz();mkS();drS();window.addEventListener('resize',()=>{rsz();mkS();});}
 
 // ── Three.js Particle Background (Olive Supernova) ──
 (async()=>{
+if(IS_MOBILE)return;
 const THREE=await import('three');
 const{OrbitControls}=await import('three/addons/controls/OrbitControls.js');
 const{EffectComposer}=await import('three/addons/postprocessing/EffectComposer.js');
@@ -746,20 +769,60 @@ composer.setSize(innerWidth,innerHeight);
 let token=localStorage.getItem('cv_tok');
 let user=JSON.parse(localStorage.getItem('cv_usr')||'null');
 let chatCount=0;
+let pdfCount=0;
 let activeDoc=null;
 let premiumActive=false;
 let subscriptionExpiry=null;
 
 // Chat history stored in localStorage
-let chatHistories=JSON.parse(localStorage.getItem('cv_histories')||'[]');
-let currentChatId=localStorage.getItem('cv_current_chat');
+let chatHistories=[];
+let currentChatId=null;
 let currentMsgs=[];
-let savedAnswers=JSON.parse(localStorage.getItem('cv_saved')||'[]');
-let queryHistory=JSON.parse(localStorage.getItem('cv_queries')||'[]');
+let savedAnswers=[];
+let queryHistory=[];
 let currentMode='normal';
 let speechRec=null;
 let voiceSupported=false;
 let voiceActive=false;
+
+function scopedKey(base){
+  const uid=user?.id||'guest';
+  return `${base}_${uid}`;
+}
+
+async function loadUserScopedState(){
+  chatHistories=JSON.parse(localStorage.getItem(scopedKey('cv_histories'))||'[]');
+  currentChatId=localStorage.getItem(scopedKey('cv_current_chat'));
+  savedAnswers=JSON.parse(localStorage.getItem(scopedKey('cv_saved'))||'[]');
+  queryHistory=JSON.parse(localStorage.getItem(scopedKey('cv_queries'))||'[]');
+  pdfCount=parseInt(localStorage.getItem(scopedKey('cv_pdf_count'))||'0');
+  
+  // Load from backend
+  try{
+    const r=await fetch(`${API}/chat/history`,{headers:ah()});
+    if(r.ok){
+      const d=await r.json();
+      // Merge with local
+      const backendHistories=d.histories||[];
+      for(const bh of backendHistories){
+        const existing=chatHistories.find(h=>h.id===bh.id);
+        if(!existing){
+          chatHistories.push({id:bh.id,title:bh.title,date:new Date(bh.date).toLocaleDateString(),msgs:bh.msgs});
+        }
+      }
+      chatHistories.sort((a,b)=>new Date(b.date)-new Date(a.date));
+      localStorage.setItem(scopedKey('cv_histories'),JSON.stringify(chatHistories));
+    }
+  }catch(e){console.warn('Failed to load chat history from backend:',e);}
+}
+
+function persistUserScopedState(){
+  localStorage.setItem(scopedKey('cv_histories'),JSON.stringify(chatHistories));
+  localStorage.setItem(scopedKey('cv_current_chat'),currentChatId||'');
+  localStorage.setItem(scopedKey('cv_saved'),JSON.stringify(savedAnswers));
+  localStorage.setItem(scopedKey('cv_queries'),JSON.stringify(queryHistory));
+  localStorage.setItem(scopedKey('cv_pdf_count'),pdfCount.toString());
+}
 
 window.onload=async()=>{
   initSpeechRecognition();
@@ -830,28 +893,36 @@ async function doLogin(){
   const err=document.getElementById('lerr');
   err.style.display='none';
   if(!e||!p){showErr(err,'Please fill all fields');return;}
+  const btn=document.querySelector('#f-login .btn-auth');
+  if(btn)btn.disabled=true;
   try{
     const r=await fetch(`${API}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});
     const d=await r.json();
     if(r.ok){saveUser(d);enterApp();}
     else showErr(err,d.detail||'Login failed');
-  }catch{showErr(err,'Cannot connect to server. Is API running on port 8000?');}
+  }catch{showErr(err,`Cannot connect to server (${API}).`);}
+  finally{ if(btn)btn.disabled=false; }
 }
 
 async function doSignup(){
   const n=document.getElementById('sn').value.trim();
   const e=document.getElementById('se').value.trim();
+  const ph=document.getElementById('sph').value.trim();
   const p=document.getElementById('sp').value;
   const err=document.getElementById('serr');
   err.style.display='none';
-  if(!n||!e||!p){showErr(err,'Please fill all fields');return;}
+  if(!n||!e||!ph||!p){showErr(err,'Please fill all fields');return;}
+  if(!/^\+?[0-9]{10,15}$/.test(ph)){showErr(err,'Enter valid phone number (10-15 digits)');return;}
   if(p.length<6){showErr(err,'Password must be at least 6 characters');return;}
+  const btn=document.querySelector('#f-signup .btn-auth');
+  if(btn)btn.disabled=true;
   try{
-    const r=await fetch(`${API}/auth/signup`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,password:p})});
+    const r=await fetch(`${API}/auth/signup`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,phone_number:ph,password:p})});
     const d=await r.json();
     if(r.ok){saveUser(d);enterApp();toast('✦ Account created! Welcome to CogniVault','success');}
     else showErr(err,d.detail||'Signup failed');
-  }catch{showErr(err,'Cannot connect to server. Is API running on port 8000?');}
+  }catch{showErr(err,`Cannot connect to server (${API}).`);}
+  finally{ if(btn)btn.disabled=false; }
 }
 
 function saveUser(d){
@@ -859,6 +930,7 @@ function saveUser(d){
   user=d.user;
   localStorage.setItem('cv_tok',token);
   localStorage.setItem('cv_usr',JSON.stringify(user));
+  loadUserScopedState();
   updateSubscriptionState();
 }
 function showErr(el,msg){el.textContent=msg;el.style.display='block';}
@@ -871,6 +943,7 @@ async function refreshUser(){
     if(r.ok){
       user=d;
       localStorage.setItem('cv_usr',JSON.stringify(user));
+      await loadUserScopedState();
       updateSubscriptionState();
     } else {
       logout();
@@ -881,25 +954,33 @@ async function refreshUser(){
 }
 
 function updateSubscriptionState(){
-  if(user?.subscription_expiry){
+  chatCount=Number(user?.chat_count||0);
+  if(user?.subscription_plan==='pro' && user?.subscription_expiry){
     subscriptionExpiry=new Date(user.subscription_expiry);
     premiumActive=subscriptionExpiry>new Date();
   } else {
     subscriptionExpiry=null;
     premiumActive=false;
   }
+  const payTab=document.getElementById('tab-pay');
+  if(payTab)payTab.style.display=premiumActive?'inline-block':'none';
 }
 
 function enterApp(){
   updateSubscriptionState();
   document.getElementById('main-nav').style.display='flex';
   document.getElementById('nav-email').textContent=user?.email||'';
+  const payTab=document.getElementById('tab-pay');
+  if(payTab)payTab.style.display=premiumActive?'inline-block':'none';
   goTo('chat');
 }
 
 function logout(){
   localStorage.removeItem('cv_tok');localStorage.removeItem('cv_usr');
   token=null;user=null;
+  chatCount=0;
+  premiumActive=false;
+  chatHistories=[];currentChatId=null;currentMsgs=[];savedAnswers=[];queryHistory=[];
   document.getElementById('main-nav').style.display='none';
   showSc('auth');
 }
@@ -912,6 +993,7 @@ function setMode(m){
 
 // Navigation
 function goTo(p){
+  if(p==='pay' && !premiumActive){showPaywall();return;}
   showSc(p);
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   const tab=document.getElementById('tab-'+p);
@@ -959,14 +1041,15 @@ function updatePlan(){
     }
   } else {
     const left=MAX_FREE-chatCount;
-    if(curPlan)curPlan.textContent=chatCount>=MAX_FREE?'Free — Limit Reached':'Free — 5 chats';
-    if(curStatus)curStatus.textContent=`${left} chats remaining`;
-    if(planLbl)planLbl.textContent=chatCount>=MAX_FREE?'🔒 Limit Reached':'Free Plan';
-    if(planCnt)planCnt.textContent=`${chatCount} / ${MAX_FREE} chats used`;
-    if(planFill)planFill.style.width=`${Math.min((chatCount/MAX_FREE)*100,100)}%`;
+    const pdfLeft=MAX_FREE_PDF-pdfCount;
+    if(curPlan)curPlan.textContent=(chatCount>=MAX_FREE || pdfCount>=MAX_FREE_PDF)?'Free — Limit Reached':'Free — 5 chats, 1 PDF';
+    if(curStatus)curStatus.textContent=`${left} chats, ${pdfLeft} PDF remaining`;
+    if(planLbl)planLbl.textContent=(chatCount>=MAX_FREE || pdfCount>=MAX_FREE_PDF)?'🔒 Limit Reached':'Free Plan';
+    if(planCnt)planCnt.textContent=`${chatCount} / ${MAX_FREE} chats used · ${pdfCount} / ${MAX_FREE_PDF} PDF uploaded`;
+    if(planFill)planFill.style.width=`${Math.min(((chatCount/MAX_FREE + pdfCount/MAX_FREE_PDF)/2)*100,100)}%`;
     if(chatsLeft)chatsLeft.textContent=`${left} chat${left!==1?'s':''} remaining`;
     if(limitBar){
-      limitBar.style.borderColor=chatCount>=MAX_FREE?'var(--danger)':'';
+      limitBar.style.borderColor=(chatCount>=MAX_FREE || pdfCount>=MAX_FREE_PDF)?'var(--danger)':'';
       limitBar.innerHTML=`✦ Free Plan — <strong id="chats-left">${left} chat${left!==1?'s':''} remaining</strong>`;
     }
   }
@@ -976,10 +1059,14 @@ async function activateSubscription(){
   try{
     const btn=document.querySelector('.btn-buy.out');
     if(btn)btn.disabled=true;
+    const paymentRef=prompt('Enter payment reference/UTR ID');
+    if(!paymentRef){toast('Payment reference required','warning');return;}
+    const activationToken=prompt('Enter activation token provided by admin');
+    if(!activationToken){toast('Activation token required','warning');return;}
     const r=await fetch(`${API}/auth/activate-subscription`,{
       method:'POST',
       headers:{'Content-Type':'application/json',...ah()},
-      body:JSON.stringify({amount_inr:9999}),
+      body:JSON.stringify({amount_inr:9999,payment_reference:paymentRef,activation_token:activationToken}),
     });
     const d=await r.json();
     if(r.ok){
@@ -1007,7 +1094,7 @@ function showSc(id){
 // Chat history
 function newChat(){
   currentChatId=Date.now().toString();
-  localStorage.setItem('cv_current_chat', currentChatId);
+  localStorage.setItem(scopedKey('cv_current_chat'), currentChatId);
   currentMsgs=[];
   document.getElementById('chat-msgs').innerHTML='';
   document.getElementById('chat-msgs').appendChild(createWelcome());
@@ -1024,13 +1111,22 @@ function createWelcome(){
 
 function saveCurrentChat(title){
   if(!currentChatId)return;
-  localStorage.setItem('cv_current_chat', currentChatId);
+  localStorage.setItem(scopedKey('cv_current_chat'), currentChatId);
   const idx=chatHistories.findIndex(h=>h.id===currentChatId);
   const item={id:currentChatId,title:title||'Untitled Chat',date:new Date().toLocaleDateString(),msgs:currentMsgs};
   if(idx>=0)chatHistories[idx]=item;
   else chatHistories.unshift(item);
   if(chatHistories.length>20)chatHistories=chatHistories.slice(0,20);
-  localStorage.setItem('cv_histories',JSON.stringify(chatHistories));
+  localStorage.setItem(scopedKey('cv_histories'),JSON.stringify(chatHistories));
+  // Save to backend
+  saveChatToBackend(currentChatId, title||'Untitled Chat', currentMsgs);
+}
+
+async function saveChatToBackend(chatId, title, msgs){
+  try{
+    const r=await fetch(`${API}/chat/save`,{method:'POST',headers:{'Content-Type':'application/json',...ah()},body:JSON.stringify({chat_id:chatId,title,messages:msgs})});
+    if(!r.ok)console.warn('Failed to save chat to backend');
+  }catch(e){console.warn('Error saving chat:',e);}
 }
 
 function renderHistory(){
@@ -1040,15 +1136,37 @@ function renderHistory(){
     <div class="hist-item ${h.id===currentChatId?'active':''}" onclick="loadChat('${h.id}')">
       <div class="hi-title">${h.title}</div>
       <div class="hi-date">${h.date}</div>
+      <button onclick="event.stopPropagation(); deleteChat('${h.id}')" style="position:absolute;right:8px;top:8px;padding:2px 6px;font-size:10px;border:1px solid var(--danger);border-radius:4px;background:transparent;color:var(--danger);cursor:pointer;">×</button>
     </div>
   `).join('');
+}
+
+async function deleteChat(chatId){
+  if(!confirm('Delete this chat?'))return;
+  try{
+    const r=await fetch(`${API}/chat/${chatId}`,{method:'DELETE',headers:ah()});
+    if(r.ok){
+      chatHistories=chatHistories.filter(h=>h.id!==chatId);
+      localStorage.setItem(scopedKey('cv_histories'),JSON.stringify(chatHistories));
+      if(currentChatId===chatId){
+        newChat();
+      }else{
+        renderHistory();
+      }
+      toast('Chat deleted','warning');
+    }else{
+      toast('Failed to delete chat','error');
+    }
+  }catch(e){
+    toast('Error deleting chat','error');
+  }
 }
 
 function loadChat(id){
   const h=chatHistories.find(x=>x.id===id);
   if(!h)return;
   currentChatId=id;
-  localStorage.setItem('cv_current_chat', currentChatId);
+  localStorage.setItem(scopedKey('cv_current_chat'), currentChatId);
   currentMsgs=h.msgs||[];
   document.getElementById('chat-title').textContent=h.title;
   const c=document.getElementById('chat-msgs');
@@ -1118,18 +1236,45 @@ function updateDashboard(){
 }
 
 // ══ VOICE SYNTHESIS & RECOGNITION ══
-function speak(text){
+function languageToLocale(langName='', text=''){
+  const l=(langName||'').toLowerCase();
+  const t=text||'';
+  if(/[؀-ۿ]/.test(t) || l.includes('urdu')) return 'ur-PK';
+  if(/[ऀ-ॿ]/.test(t) || l.includes('hindi')) return 'hi-IN';
+  if(/[ঀ-৿]/.test(t) || l.includes('bengali')) return 'bn-IN';
+  if(/[਀-੿]/.test(t) || l.includes('punjabi')) return 'pa-IN';
+  if(/[઀-૿]/.test(t) || l.includes('gujarati')) return 'gu-IN';
+  if(/[଀-୿]/.test(t) || l.includes('odia')) return 'or-IN';
+  if(/[஀-௿]/.test(t) || l.includes('tamil')) return 'ta-IN';
+  if(/[ఀ-౿]/.test(t) || l.includes('telugu')) return 'te-IN';
+  if(/[ಀ-೿]/.test(t) || l.includes('kannada')) return 'kn-IN';
+  if(/[ഀ-ൿ]/.test(t) || l.includes('malayalam')) return 'ml-IN';
+  if(l.includes('spanish')) return 'es-ES';
+  if(l.includes('french')) return 'fr-FR';
+  if(l.includes('german')) return 'de-DE';
+  if(l.includes('arabic')) return 'ar-SA';
+  return 'en-US';
+}
+
+function pickVoice(locale){
+  const voices=speechSynthesis.getVoices();
+  const exact=voices.find(v=>v.lang.toLowerCase()===locale.toLowerCase());
+  if(exact)return exact;
+  const base=locale.split('-')[0].toLowerCase();
+  return voices.find(v=>v.lang.toLowerCase().startsWith(base)) || voices.find(v=>v.lang.includes('IN')) || null;
+}
+
+function speak(text, langName=''){
   if(!('speechSynthesis' in window)){toast('Voice output not supported','warning');return;}
+  if(!text || !text.trim())return;
   speechSynthesis.cancel();
   const utterance=new SpeechSynthesisUtterance(text);
-  utterance.lang=navigator.language.includes('hi')?'hi-IN':'en-US';
+  utterance.lang=languageToLocale(langName,text);
   utterance.rate=1.0;
   utterance.pitch=1.0;
-  speechSynthesis.onvoiceschanged=()=>{
-    const voices=speechSynthesis.getVoices();
-    const pref=voices.find(v=>v.lang.includes('IN'))||voices.find(v=>v.lang.includes(utterance.lang.split('-')[0]));
-    if(pref)utterance.voice=pref;
-  };
+  const voiceNow=pickVoice(utterance.lang);
+  if(voiceNow)utterance.voice=voiceNow;
+  speechSynthesis.onvoiceschanged=()=>{const pref=pickVoice(utterance.lang);if(pref)utterance.voice=pref;};
   speechSynthesis.speak(utterance);
 }
 
@@ -1144,7 +1289,7 @@ if(!premiumActive && chatCount>=MAX_FREE){showPaywall();return;}
   
   queryHistory.unshift({q:txt,file:activeDoc,mode:currentMode,date:new Date().toLocaleDateString()});
   if(queryHistory.length>100)queryHistory.pop();
-  localStorage.setItem('cv_queries',JSON.stringify(queryHistory));
+  localStorage.setItem(scopedKey('cv_queries'),JSON.stringify(queryHistory));
 
   const wlc=document.getElementById('chat-welcome');if(wlc)wlc.remove();
   if(!currentChatId){currentChatId=Date.now().toString();}
@@ -1160,34 +1305,48 @@ if(!premiumActive && chatCount>=MAX_FREE){showPaywall();return;}
     const d=await r.json();
     typing.remove();
     if(r.ok){
-      renderMsg(d.answer,'ai',d.sources);
+      if(typeof d.subscription_active==='boolean'){
+        premiumActive=d.subscription_active;
+      }
+      if(typeof d.chats_used==='number'){
+        chatCount=d.chats_used;
+      }
+      if(!premiumActive && chatCount>=MAX_FREE){
+        updatePlan();
+        showPaywall();
+        return;
+      }
+      renderMsg(d.answer,'ai',d.sources,d.language||'');
       currentMsgs.push({text:d.answer,type:'ai',sources:d.sources||[]});
-      chatCount++;updatePlan();
+      if(!premiumActive){
+        chatCount = d.chats_remaining !== null ? MAX_FREE - d.chats_remaining : chatCount + 1;
+        updatePlan();
+      }
       const title=txt.length>40?txt.substring(0,40)+'...':txt;
       document.getElementById('chat-title').textContent=title;
       saveCurrentChat(title);
       renderHistory();
-      if(chatCount>=MAX_FREE)setTimeout(showPaywall,800);
-      setTimeout(()=>{if(premiumActive)speak(d.answer);},300);
+      if(!premiumActive && d.chats_remaining === 0)setTimeout(showPaywall,800);
+      speak(d.answer,d.language||'');
     }else if(r.status===403){
-      renderMsg('You have reached your free limit. Please upgrade to continue.','ai');
+      renderMsg(d.detail||'⚠️ Free limit reached!','ai');
       showPaywall();
     }else{
       renderMsg('Error: '+(d.detail||'Something went wrong'),'ai');
     }
   }catch{
     typing.remove();
-    renderMsg('❌ Cannot connect to API. Make sure server is running on port 8000.','ai');
+    renderMsg('❌ Cannot connect to API. Make sure the API server is running.','ai');
   }
   document.getElementById('send-btn').disabled=false;
 }
 
-function renderMsg(txt,type,srcs=[]){
+function renderMsg(txt,type,srcs=[],lang=''){
   const c=document.getElementById('chat-msgs');
   const d=document.createElement('div');
   d.className=`msg ${type}`;
   const sh=srcs?.length?`<div class="msrc">📄 ${srcs.slice(0,2).join(' · ')}</div>`:'';
-  const spk=(type==='ai' && premiumActive)?`<button class="speak-btn" onclick="speak('${txt.replace(/'/g,"\\'")}');" style="margin-left:8px;padding:3px 6px;font-size:11px;border:none;background:var(--purple);color:white;border-radius:4px;cursor:pointer;" title="Read aloud">🔊</button>`:'';
+  const spk=(type==='ai')?`<button class="speak-btn" onclick="speak(decodeURIComponent('${encodeURIComponent(txt)}'),'${(lang||'').replace(/'/g,"\\'")}');" style="margin-left:8px;padding:3px 6px;font-size:11px;border:none;background:var(--purple);color:white;border-radius:4px;cursor:pointer;" title="Read aloud">🔊</button>`:'';
   d.innerHTML=`<div class="mav">${type==='ai'?'🤖':'👤'}</div><div class="mbody">${txt.replace(/\n/g,'<br>')}${sh}${spk}</div>`;
   c.appendChild(d);c.scrollTop=c.scrollHeight;return d;
 }
@@ -1196,7 +1355,7 @@ function saveAnswer(txt){
   const item={id:Date.now(),text:txt.substring(0,100)+'...',date:new Date().toLocaleDateString(),full:txt};
   savedAnswers.unshift(item);
   if(savedAnswers.length>50)savedAnswers.pop();
-  localStorage.setItem('cv_saved',JSON.stringify(savedAnswers));
+  localStorage.setItem(scopedKey('cv_saved'),JSON.stringify(savedAnswers));
   toast('✅ Answer saved to library','success');
 }
 
@@ -1239,6 +1398,12 @@ async function loadDocs(){
 }
 
 async function uploadFiles(e){
+  if(!premiumActive && pdfCount >= MAX_FREE_PDF){
+    toast('Free plan me sirf 1 PDF upload kar sakte hain. Upgrade karke unlimited upload karein.','warning');
+    showPaywall();
+    e.target.value='';
+    return;
+  }
   const files=e.target.files;if(!files.length)return;
   const prog=document.getElementById('uz-prog');
   const st=document.getElementById('uz-st');
@@ -1251,7 +1416,14 @@ async function uploadFiles(e){
       const r=await fetch(`${API}/upload`,{method:'POST',headers:ah(),body:fd});
       const d=await r.json();
       fill.style.width=`${((i+1)/files.length)*100}%`;
-      if(r.ok)toast(`✅ ${f.name} uploaded!`,'success');
+      if(r.ok){
+        toast(`✅ ${f.name} uploaded!`,'success');
+        if(!premiumActive){
+          pdfCount++;
+          persistUserScopedState();
+        }
+      }
+      else if(r.status===403){toast('PDF upload locked. Upgrade required.','warning');showPaywall();}
       else toast(`❌ ${d.detail}`,'error');
     }catch{toast('❌ Upload failed','error');}
   }
@@ -1316,7 +1488,17 @@ async function submitReport(){
 
 // Helpers
 function ah(){return token?{'Authorization':`Bearer ${token}`}:{};}
-function showPaywall(){document.getElementById('paywall').classList.add('show');}
+function showPaywall(){
+  const desc = document.querySelector('#paywall .modal-desc');
+  if(chatCount >= MAX_FREE && pdfCount >= MAX_FREE_PDF){
+    desc.textContent = "You've used all 5 free chats and 1 free PDF upload. Pay ₹9,999/month to unlock unlimited access.";
+  } else if(chatCount >= MAX_FREE){
+    desc.textContent = "You've used all 5 free chats. Pay ₹9,999/month to unlock unlimited access.";
+  } else if(pdfCount >= MAX_FREE_PDF){
+    desc.textContent = "You've used your 1 free PDF upload. Pay ₹9,999/month to unlock unlimited access.";
+  }
+  document.getElementById('paywall').classList.add('show');
+}
 function closePaywall(){document.getElementById('paywall').classList.remove('show');}
 function toast(msg,type=''){
   const t=document.getElementById('toast');
