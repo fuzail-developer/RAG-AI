@@ -46,18 +46,34 @@ def ensure_users_schema():
                 row[1]
                 for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()
             }
-            if "chat_count" not in cols:
-                conn.exec_driver_sql(
-                    "ALTER TABLE users ADD COLUMN chat_count INTEGER NOT NULL DEFAULT 0"
-                )
-                conn.commit()
-                print("Added users.chat_count column")
-            if "phone_number" not in cols:
-                conn.exec_driver_sql(
-                    "ALTER TABLE users ADD COLUMN phone_number VARCHAR(20)"
-                )
-                conn.commit()
-                print("Added users.phone_number column")
+            migrations = [
+                (
+                    "name",
+                    "ALTER TABLE users ADD COLUMN name VARCHAR(255)",
+                ),
+                (
+                    "phone_number",
+                    "ALTER TABLE users ADD COLUMN phone_number VARCHAR(20)",
+                ),
+                (
+                    "password_hash",
+                    "ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)",
+                ),
+                (
+                    "subscription_plan",
+                    "ALTER TABLE users ADD COLUMN subscription_plan VARCHAR(50) NOT NULL DEFAULT 'free'",
+                ),
+                (
+                    "chat_count",
+                    "ALTER TABLE users ADD COLUMN chat_count INTEGER NOT NULL DEFAULT 0",
+                ),
+            ]
+            for col_name, sql in migrations:
+                if col_name not in cols:
+                    conn.exec_driver_sql(sql)
+                    conn.commit()
+                    print(f"Added users.{col_name} column")
+                    cols.add(col_name)
     except Exception as exc:
         print(f"Warning: users schema migration skipped: {exc}")
 
