@@ -673,7 +673,27 @@ function resolveAPIBase(){
   }
   return chosen.replace(/\/+$/, '');
 }
-const API = resolveAPIBase();
+let API = resolveAPIBase();
+const ORIGIN_API = (window.location.origin || '').replace(/\/+$/, '');
+
+function setAPIBase(next){
+  API = (next || '').trim().replace(/\/+$/, '');
+  if(API){
+    localStorage.setItem('cv_api_base', API);
+  }
+}
+
+async function withAPIFallback(path, options){
+  try{
+    return await fetch(`${API}${path}`, options);
+  }catch(err){
+    if(API !== ORIGIN_API){
+      setAPIBase(ORIGIN_API);
+      return await fetch(`${API}${path}`, options);
+    }
+    throw err;
+  }
+}
 const MAX_FREE = 5;
 const MAX_FREE_PDF = 1;
 const FEEDBACK_EMAIL = "fuzailshaik42@gmail.com";
@@ -870,8 +890,27 @@ function updateVoiceButton(){
 }
 
 async function checkAPI(){
-  try{const r=await fetch(`${API}/health`);setAPI(r.ok);}
-  catch{setAPI(false);}
+  try{
+    const r=await fetch(`${API}/health`);
+    if(r.ok){setAPI(true);return;}
+    if(API!==ORIGIN_API){
+      setAPIBase(ORIGIN_API);
+      const r2=await fetch(`${API}/health`);
+      setAPI(r2.ok);
+      return;
+    }
+    setAPI(false);
+  }catch{
+    if(API!==ORIGIN_API){
+      try{
+        setAPIBase(ORIGIN_API);
+        const r=await fetch(`${API}/health`);
+        setAPI(r.ok);
+        return;
+      }catch{}
+    }
+    setAPI(false);
+  }
 }
 function setAPI(ok){
   const d=document.getElementById('api-dot');
@@ -896,7 +935,7 @@ async function doLogin(){
   const btn=document.querySelector('#f-login .btn-auth');
   if(btn)btn.disabled=true;
   try{
-    const r=await fetch(`${API}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});
+    const r=await withAPIFallback('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});
     const d=await r.json();
     if(r.ok){saveUser(d);enterApp();}
     else showErr(err,d.detail||'Login failed');
@@ -917,7 +956,7 @@ async function doSignup(){
   const btn=document.querySelector('#f-signup .btn-auth');
   if(btn)btn.disabled=true;
   try{
-    const r=await fetch(`${API}/auth/signup`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,phone_number:ph,password:p})});
+    const r=await withAPIFallback('/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,phone_number:ph,password:p})});
     const d=await r.json();
     if(r.ok){saveUser(d);enterApp();toast('✦ Account created! Welcome to CogniVault','success');}
     else showErr(err,d.detail||'Signup failed');
