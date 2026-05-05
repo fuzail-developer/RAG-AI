@@ -140,9 +140,15 @@ def verify_magic_link(token: str = Query(...), db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN, detail="User inactive."
         )
 
-    access_token = create_access_token(
-        {"sub": user.id, "email": user.email}, expires_delta=timedelta(days=7)
-    )
+    try:
+        access_token = create_access_token(
+            {"sub": user.id, "email": user.email}, expires_delta=timedelta(days=7)
+        )
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Server auth config missing: JWT_SECRET_KEY",
+        ) from exc
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -249,10 +255,16 @@ def signup(payload: SignupBody, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    access_token = create_access_token(
-        {"sub": str(new_user.id), "email": new_user.email},
-        expires_delta=timedelta(days=7),
-    )
+    try:
+        access_token = create_access_token(
+            {"sub": str(new_user.id), "email": new_user.email},
+            expires_delta=timedelta(days=7),
+        )
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Server auth config missing: JWT_SECRET_KEY",
+        ) from exc
 
     return {
         "access_token": access_token,
@@ -300,9 +312,15 @@ def login(payload: LoginBody, db: Session = Depends(get_db)):
         user.subscription_plan = "free"
         db.commit()
 
-    access_token = create_access_token(
-        {"sub": str(user.id), "email": user.email}, expires_delta=timedelta(days=7)
-    )
+    try:
+        access_token = create_access_token(
+            {"sub": str(user.id), "email": user.email}, expires_delta=timedelta(days=7)
+        )
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Server auth config missing: JWT_SECRET_KEY",
+        ) from exc
 
     return {
         "access_token": access_token,
