@@ -3,6 +3,7 @@ import hashlib
 import os
 import shutil
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from itertools import chain
 from pathlib import Path
 
@@ -13,9 +14,10 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from auth.dependencies import check_active_subscription
+from auth.utils import send_email
+from auth.dependencies import get_current_user
 from auth.router import router as auth_router
-from dependencies.database import engine, get_db
+from dependencies.database import DATABASE_URL, engine, get_db
 from models import Base, Document, User
 
 load_dotenv()
@@ -33,6 +35,34 @@ try:
     Base.metadata.create_all(bind=engine)
 except Exception as e:
     print(f"Warning: Database initialization failed: {e}")
+
+
+def ensure_users_schema():
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    try:
+        with engine.connect() as conn:
+            cols = {
+                row[1]
+                for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()
+            }
+            if "chat_count" not in cols:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN chat_count INTEGER NOT NULL DEFAULT 0"
+                )
+                conn.commit()
+                print("Added users.chat_count column")
+            if "phone_number" not in cols:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN phone_number VARCHAR(20)"
+                )
+                conn.commit()
+                print("Added users.phone_number column")
+    except Exception as exc:
+        print(f"Warning: users schema migration skipped: {exc}")
+
+
+ensure_users_schema()
 
 # Lazy-loaded to avoid blocking imports
 embedding_model = None
@@ -85,7 +115,7 @@ def init_ai_components():
     print("✓ AI components initialized")
 
 
-app = FastAPI(title="CogniVault RAG API", version="2.0.0")
+app = FastAPI(title="Fuzragion RAG API", version="2.0.0")
 app.include_router(auth_router)
 
 app.add_middleware(
@@ -99,6 +129,23 @@ app.add_middleware(
 class AskRequest(BaseModel):
     query: str
     file_name: str | None = None
+    mode: str = "normal"
+
+
+class FeedbackRequest(BaseModel):
+    type: str
+    message: str
+    rating: int | None = None
+
+
+class SaveChatRequest(BaseModel):
+    chat_id: str
+    title: str
+    messages: list[dict]
+
+
+class LoadChatRequest(BaseModel):
+    chat_id: str
 
 
 def get_hash(path: Path) -> str:
@@ -165,6 +212,14 @@ def _vector_file_id(user_id: str, file_name: str) -> str:
     return f"{user_id}:{file_name}"
 
 
+def is_user_premium(user: User, now: datetime) -> bool:
+    return bool(
+        user.subscription_plan == "pro"
+        and user.subscription_expiry
+        and user.subscription_expiry > now
+    )
+
+
 @app.on_event("shutdown")
 async def shutdown_event():
     if qdrant_client is not None:
@@ -194,7 +249,7 @@ def health():
 
 @app.get("/documents")
 def list_documents(
-    current_user: User = Depends(check_active_subscription),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     rows = (
@@ -218,7 +273,7 @@ def list_documents(
 
 @app.get("/files")
 def list_files(
-    current_user: User = Depends(check_active_subscription),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     rows = (
@@ -233,9 +288,17 @@ def list_files(
 @app.post("/upload")
 async def upload(
     file: UploadFile = File(...),
-    current_user: User = Depends(check_active_subscription),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    is_premium = is_user_premium(current_user, now)
+    if not is_premium:
+        raise HTTPException(
+            status_code=403,
+            detail="PDF upload is available on Pro plan. Please upgrade to unlock unlimited PDF uploads.",
+        )
+
     init_ai_components()  # Initialize AI components on first use
 
     # Lazy imports for PDF processing
@@ -307,7 +370,7 @@ async def upload(
 @app.delete("/delete-document/{file_name}")
 def delete_document(
     file_name: str,
-    current_user: User = Depends(check_active_subscription),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     row = (
@@ -341,7 +404,7 @@ def delete_document(
 @app.delete("/delete/{file_name}")
 def delete_document_alias(
     file_name: str,
-    current_user: User = Depends(check_active_subscription),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return delete_document(file_name=file_name, current_user=current_user, db=db)
@@ -349,6 +412,43 @@ def delete_document_alias(
 
 def _run_answer(req: AskRequest, current_user: User, db: Session):
     init_ai_components()  # Initialize AI components on first use
+
+    MAX_FREE_CHATS = 5
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    subscription_active = is_user_premium(current_user, now)
+    if (
+        current_user.subscription_plan == "pro"
+        and current_user.subscription_expiry
+        and current_user.subscription_expiry <= now
+    ):
+        current_user.subscription_plan = "free"
+        db.commit()
+    days_left = (
+        max(0, (current_user.subscription_expiry - now).days)
+        if subscription_active
+        else 0
+    )
+    chats_used = int(current_user.chat_count or 0)
+    limit_reached_message = (
+        "⚠️ Free limit reached!\n\n"
+        "You’ve used all 5 free chats.\n\n"
+        "🚀 Upgrade to Premium to unlock:\n\n"
+        "* Unlimited chat\n"
+        "* PDF document analysis\n"
+        "* High-quality expert answers\n\n"
+        "💎 Activate 1 Month Premium now and continue instantly."
+    )
+
+    if not subscription_active and chats_used >= MAX_FREE_CHATS:
+        raise HTTPException(
+            status_code=403,
+            detail=limit_reached_message,
+        )
+
+    if not subscription_active:
+        current_user.chat_count += 1
+        db.commit()
+        chats_used = int(current_user.chat_count or 0)
 
     lang = detect_language(req.query)
     sub_queries = breakdown_query(req.query)
@@ -389,22 +489,47 @@ def _run_answer(req: AskRequest, current_user: User, db: Session):
             for doc in unique_chunks
         ]
     )
-    system_prompt = (
-        f"You are an expert document analyst. Reply in {lang} using Roman script. "
-        "Answer only from context and cite source tags. "
-        f"Context:\n{context}"
-    )
+
+    # Mode-based system prompts
+    mode_prompts = {
+        "normal": "You are an expert document analyst. Reply in {lang} using Roman script. Answer only from context and cite source tags.",
+        "business": "You are a strategic business consultant analyzing documents. Focus on ROI, scalability, market analysis, competition, and actionable business insights. Reply in {lang} using Roman script. Answer from context and cite sources.",
+        "legal": "You are a legal expert analyzing documents. Provide accurate information and cite relevant laws/sections where possible. Always add disclaimer: 'This is not legal advice, consult a lawyer.' Reply in {lang} using Roman script. Answer from context and cite sources.",
+        "research": "You are a research assistant analyzing documents. Provide detailed, cited, academic-level responses with latest knowledge. Suggest further reading. Reply in {lang} using Roman script. Answer from context and cite sources.",
+    }
+
+    base_prompt = mode_prompts.get(req.mode, mode_prompts["normal"])
+    system_prompt = base_prompt.format(lang=lang) + f"\n\nContext:\n{context}"
+
+    # Tier-based model and settings
+    if subscription_active:
+        model = "gpt-4.1"
+        temperature = 0.5
+        max_tokens = 2200
+    else:
+        model = "gpt-4.1-mini"
+        temperature = 0.9
+        max_tokens = 1000
+
     answer = openai_client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model=model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": req.query},
         ],
-        temperature=0.1,
-        max_tokens=1500,
+        temperature=temperature,
+        max_tokens=max_tokens,
     )
+    answer_text = answer.choices[0].message.content
+    if subscription_active and days_left <= 3:
+        reminder = (
+            f"⏳ Your Premium plan will expire in {days_left} day(s).\n\n"
+            "To avoid interruption, please renew your plan.\n\n"
+        )
+        answer_text = reminder + answer_text
+
     return {
-        "answer": answer.choices[0].message.content,
+        "answer": answer_text,
         "language": lang,
         "sources": list(
             {
@@ -412,13 +537,20 @@ def _run_answer(req: AskRequest, current_user: User, db: Session):
                 for doc in unique_chunks
             }
         ),
+        "tier": "premium" if subscription_active else "free",
+        "chats_remaining": (
+            max(0, MAX_FREE_CHATS - chats_used) if not subscription_active else None
+        ),
+        "chats_used": chats_used,
+        "subscription_active": subscription_active,
+        "days_left": days_left,
     }
 
 
 @app.post("/ask")
 def ask(
     req: AskRequest,
-    current_user: User = Depends(check_active_subscription),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return _run_answer(req, current_user, db)
@@ -427,7 +559,7 @@ def ask(
 @app.post("/chat")
 def chat(
     req: AskRequest,
-    current_user: User = Depends(check_active_subscription),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return _run_answer(req, current_user, db)
@@ -436,7 +568,133 @@ def chat(
 @app.post("/query")
 def query(
     req: AskRequest,
-    current_user: User = Depends(check_active_subscription),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return _run_answer(req, current_user, db)
+
+
+@app.post("/feedback")
+def submit_feedback(
+    req: FeedbackRequest,
+    current_user: User = Depends(get_current_user),
+):
+    feedback_to = os.getenv("FEEDBACK_TO_EMAIL", "fuzailshaik42@gmail.com")
+    kind = req.type.strip().lower()
+    if kind not in {"feedback", "report"}:
+        raise HTTPException(status_code=400, detail="Invalid feedback type")
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    subject_prefix = "Feedback" if kind == "feedback" else "Bug Report"
+    subject = f"Fuzragion {subject_prefix} | {current_user.email}"
+    rating_text = (
+        f"<p><strong>Rating:</strong> {req.rating}/5</p>" if req.rating else ""
+    )
+    html_body = (
+        f"<h3>New {subject_prefix}</h3>"
+        f"<p><strong>From:</strong> {current_user.email}</p>"
+        f"{rating_text}"
+        f"<p><strong>Type:</strong> {kind}</p>"
+        f"<p><strong>Message:</strong></p>"
+        f"<pre style='white-space:pre-wrap;font-family:inherit'>{req.message.strip()}</pre>"
+    )
+
+    try:
+        send_email(
+            to_email=feedback_to,
+            subject=subject,
+            html_body=html_body,
+            text_body=f"From: {current_user.email}\nType: {kind}\nRating: {req.rating}\n\n{req.message.strip()}",
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Feedback email failed: {exc}",
+        ) from exc
+
+    return {"success": True, "message": "Feedback sent successfully."}
+
+
+@app.post("/chat/save")
+def save_chat(
+    req: SaveChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    import json
+
+    existing = (
+        db.query(ChatHistory)
+        .filter(
+            ChatHistory.user_id == current_user.id, ChatHistory.chat_id == req.chat_id
+        )
+        .first()
+    )
+
+    messages_json = json.dumps(req.messages)
+
+    if existing:
+        existing.title = req.title
+        existing.messages = messages_json
+        existing.updated_at = datetime.utcnow()
+    else:
+        chat_history = ChatHistory(
+            user_id=current_user.id,
+            chat_id=req.chat_id,
+            title=req.title,
+            messages=messages_json,
+        )
+        db.add(chat_history)
+
+    db.commit()
+    return {"success": True}
+
+
+@app.get("/chat/history")
+def get_chat_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    import json
+
+    histories = (
+        db.query(ChatHistory)
+        .filter(ChatHistory.user_id == current_user.id)
+        .order_by(ChatHistory.updated_at.desc())
+        .all()
+    )
+
+    result = []
+    for h in histories:
+        result.append(
+            {
+                "id": h.chat_id,
+                "title": h.title,
+                "date": h.updated_at.isoformat(),
+                "msgs": json.loads(h.messages),
+            }
+        )
+
+    return {"histories": result}
+
+
+@app.delete("/chat/{chat_id}")
+def delete_chat(
+    chat_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    chat_history = (
+        db.query(ChatHistory)
+        .filter(ChatHistory.user_id == current_user.id, ChatHistory.chat_id == chat_id)
+        .first()
+    )
+
+    if not chat_history:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    db.delete(chat_history)
+    db.commit()
+    return {"success": True}
+
