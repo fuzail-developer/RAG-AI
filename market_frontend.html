@@ -713,9 +713,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
 </div>
 
 <script>
-const API = window.location.hostname.includes("onrender.com")
-  ? "https://rag-ai-g9s1.onrender.com"
-  : window.location.origin;
+const API = "https://rag-ai-g9s1.onrender.com";
 let ACTIVE_API = API;
 const ORIGIN_API = API;
 function getApiCandidates(){

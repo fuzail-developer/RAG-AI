@@ -245,9 +245,7 @@ async def shutdown_event():
 
 @app.get("/")
 def root():
-    from fastapi.responses import RedirectResponse
-
-    return RedirectResponse(url="/app")
+    return {"message": "API is running"}
 
 
 @app.get("/app", include_in_schema=False)
