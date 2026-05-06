@@ -1,7 +1,7 @@
 import ast
 import hashlib
 import os
-import shutil
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from itertools import chain
@@ -26,6 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent
 PDFS_DIR = BASE_DIR / "pdfs"
 QDRANT_DIR = BASE_DIR / "qdrant_local_data"
 COLLECTION_NAME = "learning-rag"
+STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local").strip().lower()
 
 PDFS_DIR.mkdir(exist_ok=True)
 QDRANT_DIR.mkdir(exist_ok=True)
@@ -86,6 +87,64 @@ qdrant_client = None
 vector_store = None
 text_splitter = None
 openai_client = None
+s3_client = None
+s3_bucket = os.getenv("S3_BUCKET", "").strip()
+s3_region = os.getenv("AWS_REGION", "").strip() or None
+is_hosted = any(
+    os.getenv(name)
+    for name in ("RENDER", "RENDER_SERVICE_ID", "RAILWAY_ENVIRONMENT", "FLY_APP_NAME")
+)
+if is_hosted and STORAGE_BACKEND != "s3":
+    print(
+        "Warning: Hosted deployment is not using S3 storage. Set STORAGE_BACKEND=s3 to persist PDFs."
+    )
+
+
+def _storage_key(user_id: str, file_name: str) -> str:
+    return f"pdfs/{user_id}/{file_name}"
+
+
+def _build_s3_client():
+    global s3_client
+    if s3_client is not None:
+        return s3_client
+    import boto3
+
+    s3_client = boto3.client("s3", region_name=s3_region)
+    return s3_client
+
+
+def _upload_to_storage(user_id: str, file_name: str, content: bytes):
+    if STORAGE_BACKEND == "s3":
+        if not s3_bucket:
+            raise RuntimeError("S3_BUCKET is required when STORAGE_BACKEND=s3")
+        client = _build_s3_client()
+        client.put_object(
+            Bucket=s3_bucket,
+            Key=_storage_key(user_id, file_name),
+            Body=content,
+            ContentType="application/pdf",
+        )
+        return
+
+    user_dir = PDFS_DIR / user_id
+    user_dir.mkdir(parents=True, exist_ok=True)
+    target_path = user_dir / file_name
+    with open(target_path, "wb") as out_file:
+        out_file.write(content)
+
+
+def _delete_from_storage(user_id: str, file_name: str):
+    if STORAGE_BACKEND == "s3":
+        if not s3_bucket:
+            return
+        client = _build_s3_client()
+        client.delete_object(Bucket=s3_bucket, Key=_storage_key(user_id, file_name))
+        return
+
+    user_file = PDFS_DIR / user_id / file_name
+    if user_file.exists():
+        user_file.unlink()
 
 
 def init_ai_components():
@@ -112,7 +171,17 @@ def init_ai_components():
     )
 
     embedding_model = OpenAIEmbeddings(model="text-embedding-3-large")
-    qdrant_client = QdrantClient(path=str(QDRANT_DIR))
+    qdrant_url = os.getenv("QDRANT_URL", "").strip()
+    qdrant_api_key = os.getenv("QDRANT_API_KEY", "").strip() or None
+    if is_hosted and not qdrant_url:
+        print(
+            "Warning: QDRANT_URL is not set on hosted deployment. Falling back to local qdrant path (non-persistent)."
+        )
+
+    if qdrant_url:
+        qdrant_client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key, timeout=30)
+    else:
+        qdrant_client = QdrantClient(path=str(QDRANT_DIR))
 
     existing = [c.name for c in qdrant_client.get_collections().collections]
     if COLLECTION_NAME not in existing:
@@ -245,7 +314,7 @@ async def shutdown_event():
 
 @app.get("/")
 def root():
-    return {"message": "API is running"}
+    return {"status": "running"}
 
 
 @app.get("/app", include_in_schema=False)
@@ -327,13 +396,15 @@ async def upload(
             status_code=400, detail="Only PDF upload is currently supported"
         )
 
-    user_dir = PDFS_DIR / current_user.id
-    user_dir.mkdir(parents=True, exist_ok=True)
-    target_path = user_dir / file.filename
-    with open(target_path, "wb") as out_file:
-        shutil.copyfileobj(file.file, out_file)
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
-    file_hash = get_hash(target_path)
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_file:
+        tmp_file.write(file_bytes)
+        temp_path = Path(tmp_file.name)
+
+    file_hash = get_hash(temp_path)
     vector_file_id = _vector_file_id(current_user.id, file.filename)
 
     existing_doc = (
@@ -356,13 +427,18 @@ async def upload(
             ),
         )
 
-    docs = PyPDFLoader(str(target_path)).load()
-    chunks = text_splitter.split_documents(docs)
-    for chunk in chunks:
-        chunk.metadata["file_id"] = vector_file_id
-        chunk.metadata["source"] = file.filename
-        chunk.metadata["user_id"] = current_user.id
-    vector_store.add_documents(chunks)
+    try:
+        docs = PyPDFLoader(str(temp_path)).load()
+        chunks = text_splitter.split_documents(docs)
+        for chunk in chunks:
+            chunk.metadata["file_id"] = vector_file_id
+            chunk.metadata["source"] = file.filename
+            chunk.metadata["user_id"] = current_user.id
+        vector_store.add_documents(chunks)
+        _upload_to_storage(current_user.id, file.filename, file_bytes)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
     if not existing_doc:
         existing_doc = Document(
@@ -388,6 +464,8 @@ def delete_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+
     row = (
         db.query(Document)
         .filter(Document.user_id == current_user.id, Document.file_name == file_name)
@@ -407,9 +485,7 @@ def delete_document(
         ),
     )
 
-    user_file = PDFS_DIR / current_user.id / file_name
-    if user_file.exists():
-        user_file.unlink()
+    _delete_from_storage(current_user.id, file_name)
 
     db.delete(row)
     db.commit()

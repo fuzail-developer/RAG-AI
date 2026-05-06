@@ -20,6 +20,14 @@ if DATABASE_URL.startswith("postgresql://"):
     )
 
 is_sqlite = DATABASE_URL.startswith("sqlite")
+is_hosted = any(
+    os.getenv(name)
+    for name in ("RENDER", "RENDER_SERVICE_ID", "RAILWAY_ENVIRONMENT", "FLY_APP_NAME")
+)
+if is_hosted and is_sqlite:
+    print(
+        "Warning: Hosted deployment is using sqlite. Set DATABASE_URL to PostgreSQL to avoid data loss."
+    )
 engine_kwargs = {}
 if is_sqlite:
     engine_kwargs["connect_args"] = {"check_same_thread": False}
@@ -35,8 +43,9 @@ def _build_engine(url: str):
 
 engine = _build_engine(DATABASE_URL)
 
-# Safety fallback: if hosted DB is unreachable, keep app functional with local sqlite.
-if not is_sqlite:
+# Optional local-only fallback: if hosted DB is unreachable, switch to sqlite for dev.
+allow_sqlite_fallback = os.getenv("ALLOW_SQLITE_FALLBACK", "false").lower() == "true"
+if not is_sqlite and allow_sqlite_fallback and not is_hosted:
     try:
         with engine.connect() as _conn:
             pass
