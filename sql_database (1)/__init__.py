@@ -1,1 +1,1 @@
-"""Tools for interacting with a SQL database."""
+"""Chain for interacting with SQL Database."""
